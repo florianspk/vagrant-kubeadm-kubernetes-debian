@@ -3,6 +3,10 @@
 
 ## Documentation
 
+Thi fork of vagrant-kubeadm-kubernetes allows deploying your cluster with VMs running Debian 12 instead of Xubuntu, providing an alternative environment for your Kubernetes setup.
+
+## Documentation
+
 Current k8s version for CKA, CKAD, and CKS exam: 1.28
 
 Refer to this link for documentation: https://devopscube.com/kubernetes-cluster-vagrant/
