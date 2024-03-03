@@ -7,10 +7,11 @@ set -euxo pipefail
 # Variable Declaration
 
 # DNS Setting
+sudo apt-get -y install systemd-resolved 
 if [ ! -d /etc/systemd/resolved.conf.d ]; then
 	sudo mkdir /etc/systemd/resolved.conf.d/
 fi
-cat <<EOF | sudo tee /etc/systemd/resolved.conf.d/dns_servers.conf
+cat <<EOF | sudo tee /etc/systemd/resolved.conf
 [Resolve]
 DNS=${DNS_SERVERS}
 EOF
@@ -68,9 +69,9 @@ echo "CRI runtime installed successfully"
 
 sudo apt-get update
 sudo apt-get install -y apt-transport-https ca-certificates curl
-curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --yes --dearmor -o /usr/share/keyrings/kubernetes-archive-keyring.gpg
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list > /dev/null
+curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-archive-keyring.gpg
 
+echo "deb [signed-by=/etc/apt/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
 sudo apt-get update -y
 sudo apt-get install -y kubelet="$KUBERNETES_VERSION" kubectl="$KUBERNETES_VERSION" kubeadm="$KUBERNETES_VERSION"
 sudo apt-get update -y
