@@ -51,7 +51,7 @@ Vagrant.configure("2") do |config|
       path: "scripts/common.sh"
     master.vm.provision "shell",
       env: {
-        "CALICO_VERSION" => settings["software"]["calico"],
+        "CILIUM_VERSION" => settings["software"]["cilium"],
         "CONTROL_IP" => settings["network"]["control_ip"],
         "POD_CIDR" => settings["network"]["pod_cidr"],
         "SERVICE_CIDR" => settings["network"]["service_cidr"]
@@ -81,15 +81,19 @@ Vagrant.configure("2") do |config|
           "DNS_SERVERS" => settings["network"]["dns_servers"].join(" "),
           "ENVIRONMENT" => settings["environment"],
           "KUBERNETES_VERSION" => settings["software"]["kubernetes"],
-          "KUBERNETES_VERSION_SHORT" => settings["software"]["kubernetes"][0..3],
-          "OS" => settings["software"]["os"]
+          "KUBERNETES_VERSION_SHORT" => settings["software"]["kubernetes"][0..3]
         },
         path: "scripts/common.sh"
       node.vm.provision "shell", path: "scripts/node.sh"
-
-      # Only install the dashboard after provisioning the last worker (and when enabled).
-      if i == NUM_WORKER_NODES and settings["software"]["dashboard"] and settings["software"]["dashboard"] != ""
-        node.vm.provision "shell", path: "scripts/dashboard.sh"
+      if i == NUM_WORKER_NODES && settings["software"]["tools"].is_a?(Hash) && !settings["software"]["tools"].empty?
+        node.vm.provision "shell",
+        env: {
+          "DASHBOARD" => settings["software"]["tools"]["dashboard"],
+          "ARGOCD" => settings["software"]["tools"]["argocd"],
+          "PROMETHEUS_CONFIG" => settings["software"]["tools"]["prometheus-config"],
+          "GRAFANA" => settings["software"]["tools"]["grafana"]
+        },
+        path: "scripts/tools.sh"
       end
     end
 

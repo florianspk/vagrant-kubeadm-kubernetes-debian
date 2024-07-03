@@ -10,7 +10,7 @@ cluster_name: Kubernetes Cluster
 # All IPs/CIDRs should be private and allowed in /etc/vbox/networks.conf.
 network:
   # Worker IPs are simply incremented from the control IP.
-  control_ip: 10.0.0.10
+  control_ip: 10.0.12.10
   dns_servers:
     - 8.8.8.8
     - 1.1.1.1
@@ -21,7 +21,7 @@ nodes:
     cpu: 2
     memory: 4096
   workers:
-    count: 2
+    count: 3
     cpu: 1
     memory: 2048
 # Mount additional shared folders from the host into each virtual machine.
@@ -31,8 +31,18 @@ nodes:
 #     vm_path: /vagrant/images
 software:
   box: bento/debian-12
-  calico: 3.26.0
-  # To skip the dashboard installation, set its version to an empty value or comment it out:
-  # dashboard: 2.7.0
-  kubernetes: 1.28.2-*
-  os: Debian_12
+  cilium: 1.16.0-rc.1
+  kubernetes: 1.30.2-*
+  tools:
+   dashboard: 2.7.0
+  # argocd: 
+  # prometheus-config:
+  # grafana: 
+
+
+
+
+
+
+
+  

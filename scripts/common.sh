@@ -3,11 +3,10 @@
 # Common setup for all servers (Control Plane and Nodes)
 
 set -euxo pipefail
-
 # Variable Declaration
 
 # DNS Setting
-sudo apt-get -y install systemd-resolved 
+sudo apt-get -y install systemd-resolved
 if [ ! -d /etc/systemd/resolved.conf.d ]; then
 	sudo mkdir /etc/systemd/resolved.conf.d/
 fi
@@ -46,24 +45,20 @@ EOF
 
 sudo sysctl --system
 
-cat <<EOF | sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
-deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/ /
-EOF
-cat <<EOF | sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:stable:cri-o:$VERSION.list
-deb http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/$VERSION/$OS/ /
-EOF
+sudo apt-get update -y
+apt-get install -y software-properties-common curl apt-transport-https ca-certificates
 
-curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/$VERSION/$OS/Release.key | sudo apt-key --keyring /etc/apt/trusted.gpg.d/libcontainers.gpg add -
-curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/Release.key | sudo apt-key --keyring /etc/apt/trusted.gpg.d/libcontainers.gpg add -
+curl -fsSL https://pkgs.k8s.io/addons:/cri-o:/prerelease:/main/deb/Release.key |
+    gpg --dearmor -o /etc/apt/keyrings/cri-o-apt-keyring.gpg
+echo "deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://pkgs.k8s.io/addons:/cri-o:/prerelease:/main/deb/ /" |
+    tee /etc/apt/sources.list.d/cri-o.list
 
-sudo apt-get update
-sudo apt-get install cri-o cri-o-runc -y
+sudo apt-get update -y
+sudo apt-get install -y cri-o
 
-cat >> /etc/default/crio << EOF
-${ENVIRONMENT}
-EOF
 sudo systemctl daemon-reload
 sudo systemctl enable crio --now
+sudo systemctl start crio.service
 
 echo "CRI runtime installed successfully"
 
@@ -76,6 +71,8 @@ sudo apt-get update
 sudo apt-get install -y kubelet="$KUBERNETES_VERSION" kubectl="$KUBERNETES_VERSION" kubeadm="$KUBERNETES_VERSION"
 sudo apt-get update -y
 sudo apt-get install -y jq
+
+sudo apt-mark hold kubelet kubectl kubeadm cri-o
 
 local_ip="$(ip --json a s | jq -r '.[] | if .ifname == "eth1" then .addr_info[] | if .family == "inet" then .local else empty end else empty end')"
 cat > /etc/default/kubelet << EOF
