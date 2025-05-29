@@ -32,17 +32,9 @@ nodes:
 software:
   box: bento/debian-12
   cilium: 1.16.0-rc.1
-  kubernetes: 1.30.2-*
+  kubernetes: 1.33.1-*
   tools:
-   dashboard: 2.7.0
-  # argocd: 
+    dashboard: 2.7.0
+  # argocd:
   # prometheus-config:
-  # grafana: 
-
-
-
-
-
-
-
-  
+  # grafana:
