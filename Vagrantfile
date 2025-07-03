@@ -1,4 +1,3 @@
-
 require "yaml"
 settings = YAML.load_file "settings.yaml"
 
@@ -33,6 +32,12 @@ Vagrant.configure("2") do |config|
         master.vm.synced_folder shared_folder["host_path"], shared_folder["vm_path"]
       end
     end
+
+    # Copie du certificat CA personnalisé si défini
+    if settings["security"] && settings["security"]["ca_custom_path"]
+      master.vm.provision "file", source: settings["security"]["ca_custom_path"], destination: "/tmp/ca_custom.crt"
+    end
+
     master.vm.provider "virtualbox" do |vb|
         vb.cpus = settings["nodes"]["control"]["cpu"]
         vb.memory = settings["nodes"]["control"]["memory"]
@@ -46,7 +51,8 @@ Vagrant.configure("2") do |config|
         "ENVIRONMENT" => settings["environment"],
         "KUBERNETES_VERSION" => settings["software"]["kubernetes"],
         "KUBERNETES_VERSION_SHORT" => settings["software"]["kubernetes"][0..3],
-        "OS" => settings["software"]["os"]
+        "OS" => settings["software"]["os"],
+        "CA_CUSTOM" => settings["security"] && settings["security"]["ca_custom_path"] ? "true" : "false"
       },
       path: "scripts/common.sh"
     master.vm.provision "shell",
@@ -69,6 +75,12 @@ Vagrant.configure("2") do |config|
           node.vm.synced_folder shared_folder["host_path"], shared_folder["vm_path"]
         end
       end
+
+      # Copie du certificat CA personnalisé si défini
+      if settings["security"] && settings["security"]["ca_custom_path"]
+        node.vm.provision "file", source: settings["security"]["ca_custom_path"], destination: "/tmp/ca_custom.crt"
+      end
+
       node.vm.provider "virtualbox" do |vb|
           vb.cpus = settings["nodes"]["workers"]["cpu"]
           vb.memory = settings["nodes"]["workers"]["memory"]
@@ -81,7 +93,8 @@ Vagrant.configure("2") do |config|
           "DNS_SERVERS" => settings["network"]["dns_servers"].join(" "),
           "ENVIRONMENT" => settings["environment"],
           "KUBERNETES_VERSION" => settings["software"]["kubernetes"],
-          "KUBERNETES_VERSION_SHORT" => settings["software"]["kubernetes"][0..3]
+          "KUBERNETES_VERSION_SHORT" => settings["software"]["kubernetes"][0..3],
+          "CA_CUSTOM" => settings["security"] && settings["security"]["ca_custom_path"] ? "true" : "false"
         },
         path: "scripts/common.sh"
       node.vm.provision "shell", path: "scripts/node.sh"
@@ -98,4 +111,4 @@ Vagrant.configure("2") do |config|
     end
 
   end
-end 
+end

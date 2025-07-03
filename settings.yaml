@@ -32,9 +32,12 @@ nodes:
 software:
   box: bento/debian-12
   cilium: 1.16.0-rc.1
-  kubernetes: 1.33.1-*
+  kubernetes: 1.31.5-*
   tools:
     dashboard: 2.7.0
   # argocd:
   # prometheus-config:
   # grafana:
+
+security:
+  ca_custom_path: "./certs/ca.crt"
