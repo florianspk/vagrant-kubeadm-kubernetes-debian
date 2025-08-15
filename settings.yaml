@@ -30,14 +30,13 @@ nodes:
 #   - host_path: ../images
 #     vm_path: /vagrant/images
 software:
-  box: bento/debian-12
-  cilium: 1.16.0-rc.1
-  kubernetes: 1.31.5-*
+  box: Intracto/Debian13
+  cilium: 1.18.0
+  kubernetes: 1.33.4-*
   tools:
     dashboard: 2.7.0
   # argocd:
   # prometheus-config:
   # grafana:
-
-security:
-  ca_custom_path: "./certs/ca.crt"
+# security:
+#   ca_custom_path: "./certs/ca.crt"
