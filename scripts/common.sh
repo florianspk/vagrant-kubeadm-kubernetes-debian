@@ -45,6 +45,34 @@ EOF
 
 sudo sysctl --system
 
+if [ "$CA_CUSTOM" = "true" ]; then
+    echo "Installation du certificat CA personnalisé..."
+
+    # Vérifier si le fichier existe
+    if [ -f "/tmp/ca_custom.crt" ]; then
+        # Pour Debian/Ubuntu
+        if [ -f /etc/debian_version ]; then
+            # Copier le certificat dans le répertoire approprié
+            sudo cp /tmp/ca_custom.crt /usr/local/share/ca-certificates/ca_custom.crt
+
+            # Mettre à jour les certificats CA
+            sudo update-ca-certificates
+
+            echo "Certificat CA personnalisé installé avec succès"
+        fi
+
+        # Nettoyer le fichier temporaire
+        rm -f /tmp/ca_custom.crt
+
+    else
+        echo "Erreur: Le fichier /tmp/ca_custom.crt n'existe pas"
+        exit 1
+    fi
+else
+    echo "Aucun certificat CA personnalisé à installer"
+fi
+
+
 sudo apt-get update -y
 apt-get install -y curl apt-transport-https ca-certificates gnupg
 
@@ -79,35 +107,3 @@ cat > /etc/default/kubelet << EOF
 KUBELET_EXTRA_ARGS=--node-ip=$local_ip
 ${ENVIRONMENT}
 EOF
-
-if [ "$CA_CUSTOM" = "true" ]; then
-    echo "Installation du certificat CA personnalisé..."
-
-    # Vérifier si le fichier existe
-    if [ -f "/tmp/ca_custom.crt" ]; then
-        # Pour Debian/Ubuntu
-        if [ -f /etc/debian_version ]; then
-            # Copier le certificat dans le répertoire approprié
-            sudo cp /tmp/ca_custom.crt /usr/local/share/ca-certificates/ca_custom.crt
-
-            # Mettre à jour les certificats CA
-            sudo update-ca-certificates
-
-            echo "Certificat CA personnalisé installé avec succès"
-        fi
-
-        # Nettoyer le fichier temporaire
-        rm -f /tmp/ca_custom.crt
-
-        # Redémarrer les services qui pourraient avoir besoin du nouveau certificat
-        if systemctl is-active --quiet docker; then
-            sudo systemctl restart docker
-        fi
-
-    else
-        echo "Erreur: Le fichier /tmp/ca_custom.crt n'existe pas"
-        exit 1
-    fi
-else
-    echo "Aucun certificat CA personnalisé à installer"
-fi
