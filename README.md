@@ -3,7 +3,16 @@
 
 ## Documentation
 
-Thi fork of vagrant-kubeadm-kubernetes allows deploying your cluster with VMs running Debian 12 instead of Xubuntu, providing an alternative environment for your Kubernetes setup.
+This fork of vagrant-kubeadm-kubernetes allows deploying your cluster with VMs running Debian 12 instead of Xubuntu, providing an alternative environment for your Kubernetes setup.
+
+The cluster automatically installs additional services based on configuration:
+- **Kubernetes Dashboard** - Web UI for cluster management
+- **Istio Service Mesh** - Connect, secure, control, and observe microservices
+- **Argo Workflows** - Container-native workflow engine
+- **Argo Events** - Event-driven workflow automation framework
+- **Argo Rollouts** - Progressive delivery controller
+
+See [SERVICES.md](SERVICES.md) for detailed documentation on available services.
 
 ## Documentation
 
@@ -46,6 +55,20 @@ echo "* 0.0.0.0/0 ::/0" | sudo tee -a /etc/vbox/networks.conf
 
 So that the host only networks can be in any range, not just 192.168.56.0/21 as described here:
 https://discuss.hashicorp.com/t/vagrant-2-2-18-osx-11-6-cannot-create-private-network/30984/23
+
+## Configuration
+
+Before bringing up the cluster, you can customize the services to be installed in `settings.yaml`:
+
+```yaml
+software:
+  tools:
+    dashboard: 2.7.0        # Kubernetes Dashboard version
+    argo-events: true       # Enable Argo Events
+    argo-workflow: true     # Enable Argo Workflows  
+    argo-rollout: true      # Enable Argo Rollouts
+    istio: true            # Enable Istio Service Mesh
+```
 
 ## Bring Up the Cluster
 
@@ -95,6 +118,35 @@ Open the site in your browser:
 ```shell
 http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/#/overview?namespace=kubernetes-dashboard
 ```
+
+## Accessing Other Services
+
+After the cluster is up, you can check the status of all installed services:
+
+```shell
+/vagrant/scripts/check-services.sh
+```
+
+### Service Access Examples
+
+**Argo Workflows UI:**
+```shell
+kubectl port-forward -n argo svc/argo-workflow-argo-workflows-server 2746:2746
+# Open: http://localhost:2746
+```
+
+**Argo Rollouts Dashboard:**
+```shell
+kubectl port-forward -n argo-rollouts svc/argo-rollouts-dashboard 3100:3100  
+# Open: http://localhost:3100
+```
+
+**Istio Services:**
+```shell
+kubectl get svc -n istio-system
+```
+
+For complete service documentation, see [SERVICES.md](SERVICES.md).
 
 ## To shutdown the cluster,
 

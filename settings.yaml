@@ -32,9 +32,13 @@ nodes:
 software:
   box: Intracto/Debian13
   cilium: 1.18.0
-  kubernetes: 1.31.2-*
+  kubernetes: 1.33.3-*
   tools:
     dashboard: 2.7.0
+    argo-events: true
+    argo-workflow: true
+    argo-rollout: true
+    istio: true
   # argocd:
   # prometheus-config:
   # grafana:

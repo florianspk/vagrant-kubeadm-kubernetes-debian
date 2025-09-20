@@ -102,11 +102,13 @@ Vagrant.configure("2") do |config|
         node.vm.provision "shell",
         env: {
           "DASHBOARD" => settings["software"]["tools"]["dashboard"],
-          "ARGOCD" => settings["software"]["tools"]["argocd"],
-          "PROMETHEUS_CONFIG" => settings["software"]["tools"]["prometheus-config"],
-          "GRAFANA" => settings["software"]["tools"]["grafana"]
+          "ARGO_EVENTS" => settings["software"]["tools"]["argo-events"],
+          "ARGO_WORKFLOW" => settings["software"]["tools"]["argo-workflow"],
+          "ARGO_ROLLOUT" => settings["software"]["tools"]["argo-rollout"],
+          "ISTIO" => settings["software"]["tools"]["istio"],
+          "NUM_WORKER_NODES" => NUM_WORKER_NODES
         },
-        path: "scripts/tools.sh"
+        path: "scripts/extra.sh"
       end
     end
 

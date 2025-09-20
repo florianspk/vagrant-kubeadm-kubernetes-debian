@@ -1,0 +1,199 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rollouts-demo
+  labels:
+    istio-injection: enabled
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rollouts-demo
+  namespace: rollouts-demo
+spec:
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app: rollouts-demo
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollouts-demo
+  namespace: rollouts-demo
+spec:
+  replicas: 5
+  strategy:
+    canary:
+      # Analysis will be performed in background, while rollout is progressing through its steps
+      analysis:
+        templates:
+        - templateName: success-rate
+        # requiredForCompletion specifies the number of successful analysis runs that are
+        # required for the rollout to be considered successful
+        startingStep: 2 # delay starting analysis until setWeight: 40%
+        args:
+        - name: service-name
+          value: rollouts-demo.rollouts-demo.svc.cluster.local
+      canaryService: rollouts-demo-canary # required
+      stableService: rollouts-demo-stable  # required
+      trafficRouting:
+        istio:
+          virtualService:
+            name: rollouts-demo-vsvc        # required
+            routes:
+            - primary                 # required
+          destinationRule:
+            name: rollouts-demo-dest    # required
+            canarySubsetName: canary  # required
+            stableSubsetName: stable  # required
+      steps:
+      - setWeight: 5
+      - pause: {}
+      - setWeight: 20
+      - pause: {duration: 10}
+      - setWeight: 40
+      - pause: {duration: 10}
+      - setWeight: 60
+      - pause: {duration: 10}
+      - setWeight: 80
+      - pause: {duration: 10}
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: rollouts-demo
+  template:
+    metadata:
+      labels:
+        app: rollouts-demo
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: argoproj/rollouts-demo:blue
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        resources:
+          requests:
+            memory: 32Mi
+            cpu: 5m
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rollouts-demo-canary
+  namespace: rollouts-demo
+spec:
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app: rollouts-demo
+    # This selector will be updated with a canary specific label when the canary is created
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rollouts-demo-stable
+  namespace: rollouts-demo
+spec:
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app: rollouts-demo
+    # This selector will be updated with a stable specific label when the rollout is stable
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: rollouts-demo-vsvc
+  namespace: rollouts-demo
+spec:
+  gateways:
+  - rollouts-demo-gateway
+  hosts:
+  - rollouts-demo.local
+  http:
+  - name: primary       # referenced in canary.trafficRouting.istio.virtualService.routes
+    match:
+    - headers:
+        end-user:
+          exact: jason
+    route:
+    - destination:
+        host: rollouts-demo-stable
+      weight: 100
+  - route:
+    - destination:
+        host: rollouts-demo-stable  # referenced in canary.trafficRouting.istio.destinationRule.stableSubsetName
+      weight: 100
+    - destination:
+        host: rollouts-demo-canary  # referenced in canary.trafficRouting.istio.destinationRule.canarySubsetName
+      weight: 0
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: rollouts-demo-dest
+  namespace: rollouts-demo
+spec:
+  host: rollouts-demo
+  subsets:
+  - name: canary   # referenced in canary.trafficRouting.istio.destinationRule.canarySubsetName
+    labels:        # labels will be injected with canary rollouts-pod-template-hash value
+      app: rollouts-demo
+  - name: stable   # referenced in canary.trafficRouting.istio.destinationRule.stableSubsetName
+    labels:        # labels will be injected with stable rollouts-pod-template-hash value
+      app: rollouts-demo
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: rollouts-demo-gateway
+  namespace: rollouts-demo
+spec:
+  selector:
+    istio: ingress # use istio default controller
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - rollouts-demo.local
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate
+  namespace: rollouts-demo
+spec:
+  args:
+  - name: service-name
+  metrics:
+  - name: success-rate
+    interval: 10s
+    # NOTE: prometheus queries return results in the form of a vector.
+    # So it is common to access the vector index 0
+    successCondition: result[0] >= 0.95
+    failureLimit: 3
+    provider:
+      prometheus:
+        address: http://prometheus.istio-system:9090 # assuming prometheus is installed in istio-system
+        query: |
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service_name=~"{{args.service-name}}",response_code!~"5.*"}[5m]
+          )) /
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service_name=~"{{args.service-name}}"}[5m]
+          ))

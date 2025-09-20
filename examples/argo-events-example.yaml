@@ -1,0 +1,213 @@
+---
+# Namespace for our event examples
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argo-events-demo
+---
+# EventBus - Required for event routing
+apiVersion: argoproj.io/v1alpha1
+kind: EventBus
+metadata:
+  name: default
+  namespace: argo-events-demo
+spec:
+  nats:
+    native:
+      # Optional configuration for the NATS streaming server
+      replicas: 1
+      auth: token
+      persistence:
+        storageClassName: standard
+        accessMode: ReadWriteOnce
+        volumeSize: 10Gi
+---
+# EventSource - Webhook that receives HTTP requests
+apiVersion: argoproj.io/v1alpha1
+kind: EventSource
+metadata:
+  name: webhook-event-source
+  namespace: argo-events-demo
+spec:
+  service:
+    ports:
+      - port: 12000
+        targetPort: 12000
+  webhook:
+    # Event source name
+    example:
+      # port to run HTTP server on
+      port: "12000"
+      # HTTP request path which will trigger an event
+      endpoint: /example
+      # HTTP request method to allow. In this case, only POST requests are accepted
+      method: POST
+---
+# Sensor - Listens to events and triggers actions
+apiVersion: argoproj.io/v1alpha1
+kind: Sensor
+metadata:
+  name: webhook-sensor
+  namespace: argo-events-demo
+spec:
+  template:
+    serviceAccountName: argo-events-sa
+  dependencies:
+    - name: test-dep
+      eventSourceName: webhook-event-source
+      eventName: example
+  triggers:
+    - template:
+        name: webhook-workflow-trigger
+        k8s:
+          operation: create
+          source:
+            resource:
+              apiVersion: argoproj.io/v1alpha1
+              kind: Workflow
+              metadata:
+                generateName: webhook-triggered-
+                namespace: argo
+              spec:
+                entrypoint: whalesay
+                arguments:
+                  parameters:
+                  - name: message
+                    # Value from the webhook payload
+                    value: "Event triggered at: {{.Input.body.timestamp}}"
+                templates:
+                - name: whalesay
+                  inputs:
+                    parameters:
+                    - name: message
+                  container:
+                    image: docker/whalesay:latest
+                    command: [cowsay]
+                    args: ["{{inputs.parameters.message}}"]
+                    resources:
+                      requests:
+                        memory: 32Mi
+                        cpu: 100m
+---
+# Service to expose the webhook EventSource
+apiVersion: v1
+kind: Service
+metadata:
+  name: webhook-event-source-eventsource-svc
+  namespace: argo-events-demo
+spec:
+  type: NodePort
+  ports:
+    - port: 12000
+      targetPort: 12000
+      nodePort: 31000
+  selector:
+    eventsource-name: webhook-event-source
+---
+# ServiceAccount for the sensor
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argo-events-sa
+  namespace: argo-events-demo
+---
+# Role for creating workflows
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: argo
+  name: workflow-creator
+rules:
+- apiGroups: ["argoproj.io"]
+  resources: ["workflows"]
+  verbs: ["create", "get", "list", "watch"]
+---
+# RoleBinding to allow sensor to create workflows in argo namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argo-events-workflow-creator
+  namespace: argo
+subjects:
+- kind: ServiceAccount
+  name: argo-events-sa
+  namespace: argo-events-demo
+roleRef:
+  kind: Role
+  name: workflow-creator
+  apiGroup: rbac.authorization.k8s.io
+---
+# ClusterRole for sensor operations
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: argo-events-sensor-role
+rules:
+- apiGroups: [""]
+  resources: ["pods", "pods/log"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list"]
+- apiGroups: ["argoproj.io"]
+  resources: ["sensors", "sensors/finalizers", "sensors/status", "eventsources", "eventsources/finalizers", "eventsources/status", "eventbus", "eventbus/finalizers", "eventbus/status"]
+  verbs: ["create", "delete", "deletecollection", "get", "list", "patch", "update", "watch"]
+---
+# ClusterRoleBinding for sensor
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: argo-events-sensor-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: argo-events-sensor-role
+subjects:
+- kind: ServiceAccount
+  name: argo-events-sa
+  namespace: argo-events-demo
+---
+# Example of a Git EventSource (commented out, uncomment to use)
+# apiVersion: argoproj.io/v1alpha1
+# kind: EventSource
+# metadata:
+#   name: github-event-source
+#   namespace: argo-events-demo
+# spec:
+#   service:
+#     ports:
+#       - port: 12001
+#         targetPort: 12001
+#   github:
+#     example:
+#       # Github webhook endpoint
+#       webhook:
+#         endpoint: /push
+#         port: "12001"
+#         method: POST
+#         url: "https://github.com/your-org/your-repo"
+#       # type of events to listen to.
+#       # following listens to everything, hence *
+#       # You can find more info on https://developer.github.com/v3/activity/events/types/
+#       events:
+#         - "*"
+#       # apiToken, webhookSecret and insecure are HookSecret reference
+#       apiToken:
+#         # Name of the K8s secret that contains the github api token
+#         name: github-access
+#         # Key within the K8s secret whose corresponding value (must be base64 encoded) is access token
+#         key: token
+#       # webhookSecret refers to K8s secret that contains the github webhook secret
+#       webhookSecret:
+#         name: github-access
+#         key: secret
+#       # type of the connection between event-source and Github.
+#       # You should set it to false to avoid man-in-the-middle and other attacks.
+#       insecure: true
+#       # Determines if notifications are sent when the webhook is triggered
+#       active: true
+#       # The media type used to serialize the payloads
+#       contentType: json
