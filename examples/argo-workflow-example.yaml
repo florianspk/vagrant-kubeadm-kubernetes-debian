@@ -4,56 +4,57 @@ metadata:
   generateName: data-pipeline-dag-
 spec:
   entrypoint: data-pipeline-dag
+  serviceAccountName: argo-workflow
   templates:
-  - name: data-pipeline-dag
-    dag:
-      tasks:
-      - name: fetch-data
-        template: fetch-data
+    - name: data-pipeline-dag
+      dag:
+        tasks:
+          - name: fetch-data
+            template: fetch-data
 
-      - name: clean-data
-        dependencies: [fetch-data]
-        template: clean-data
+          - name: clean-data
+            dependencies: [fetch-data]
+            template: clean-data
 
-      - name: generate-metadata
-        dependencies: [fetch-data]
-        template: generate-metadata
+          - name: generate-metadata
+            dependencies: [fetch-data]
+            template: generate-metadata
 
-      - name: aggregate-validate
-        dependencies: [clean-data, generate-metadata]
-        template: aggregate-validate
+          - name: aggregate-validate
+            dependencies: [clean-data, generate-metadata]
+            template: aggregate-validate
 
-      - name: load-production
-        dependencies: [aggregate-validate]
-        template: load-production
+          - name: load-production
+            dependencies: [aggregate-validate]
+            template: load-production
 
-  # --- Templates (containers exécutés) ---
-  - name: fetch-data
-    container:
-      image: alpine:3.20
-      command: [sh, -c]
-      args: ["echo '📥 Fetching raw data...' && sleep 2"]
+    # --- Templates (containers exécutés) ---
+    - name: fetch-data
+      container:
+        image: alpine:3.20
+        command: [sh, -c]
+        args: ["echo '📥 Fetching raw data...' && sleep 2"]
 
-  - name: clean-data
-    container:
-      image: alpine:3.20
-      command: [sh, -c]
-      args: ["echo '🧹 Cleaning data...' && sleep 3"]
+    - name: clean-data
+      container:
+        image: alpine:3.20
+        command: [sh, -c]
+        args: ["echo '🧹 Cleaning data...' && sleep 3"]
 
-  - name: generate-metadata
-    container:
-      image: alpine:3.20
-      command: [sh, -c]
-      args: ["echo '📝 Generating metadata...' && sleep 2"]
+    - name: generate-metadata
+      container:
+        image: alpine:3.20
+        command: [sh, -c]
+        args: ["echo '📝 Generating metadata...' && sleep 2"]
 
-  - name: aggregate-validate
-    container:
-      image: alpine:3.20
-      command: [sh, -c]
-      args: ["echo '🔗 Aggregating and validating data...' && sleep 4"]
+    - name: aggregate-validate
+      container:
+        image: alpine:3.20
+        command: [sh, -c]
+        args: ["echo '🔗 Aggregating and validating data...' && sleep 4"]
 
-  - name: load-production
-    container:
-      image: alpine:3.20
-      command: [sh, -c]
-      args: ["echo '🚀 Loading data to production DB...' && sleep 2"]
+    - name: load-production
+      container:
+        image: alpine:3.20
+        command: [sh, -c]
+        args: ["echo '🚀 Loading data to production DB...' && sleep 2"]

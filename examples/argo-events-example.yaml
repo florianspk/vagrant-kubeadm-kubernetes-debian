@@ -18,7 +18,6 @@ spec:
       replicas: 1
       auth: token
       persistence:
-        storageClassName: standard
         accessMode: ReadWriteOnce
         volumeSize: 10Gi
 ---
@@ -72,22 +71,22 @@ spec:
                 entrypoint: whalesay
                 arguments:
                   parameters:
-                  - name: message
-                    # Value from the webhook payload
-                    value: "Event triggered at: {{.Input.body.timestamp}}"
-                templates:
-                - name: whalesay
-                  inputs:
-                    parameters:
                     - name: message
-                  container:
-                    image: docker/whalesay:latest
-                    command: [cowsay]
-                    args: ["{{inputs.parameters.message}}"]
-                    resources:
-                      requests:
-                        memory: 32Mi
-                        cpu: 100m
+                      # Value from the webhook payload
+                      value: "Event triggered at: {{.Input.body.timestamp}}"
+                templates:
+                  - name: whalesay
+                    inputs:
+                      parameters:
+                        - name: message
+                    container:
+                      image: docker/whalesay:latest
+                      command: [cowsay]
+                      args: ["{{inputs.parameters.message}}"]
+                      resources:
+                        requests:
+                          memory: 32Mi
+                          cpu: 100m
 ---
 # Service to expose the webhook EventSource
 apiVersion: v1
@@ -96,13 +95,32 @@ metadata:
   name: webhook-event-source-eventsource-svc
   namespace: argo-events-demo
 spec:
-  type: NodePort
   ports:
     - port: 12000
       targetPort: 12000
-      nodePort: 31000
   selector:
     eventsource-name: webhook-event-source
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: webhook-event-source-ingress
+  namespace: argo-events-demo
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: argo-events.localhost
+      http:
+        paths:
+          - path: /example
+            pathType: Prefix
+            backend:
+              service:
+                name: webhook-event-source-eventsource-svc
+                port:
+                  number: 12000
 ---
 # ServiceAccount for the sensor
 apiVersion: v1
@@ -118,9 +136,9 @@ metadata:
   namespace: argo
   name: workflow-creator
 rules:
-- apiGroups: ["argoproj.io"]
-  resources: ["workflows"]
-  verbs: ["create", "get", "list", "watch"]
+  - apiGroups: ["argoproj.io"]
+    resources: ["workflows"]
+    verbs: ["create", "get", "list", "watch"]
 ---
 # RoleBinding to allow sensor to create workflows in argo namespace
 apiVersion: rbac.authorization.k8s.io/v1
@@ -129,9 +147,9 @@ metadata:
   name: argo-events-workflow-creator
   namespace: argo
 subjects:
-- kind: ServiceAccount
-  name: argo-events-sa
-  namespace: argo-events-demo
+  - kind: ServiceAccount
+    name: argo-events-sa
+    namespace: argo-events-demo
 roleRef:
   kind: Role
   name: workflow-creator
@@ -143,18 +161,39 @@ kind: ClusterRole
 metadata:
   name: argo-events-sensor-role
 rules:
-- apiGroups: [""]
-  resources: ["pods", "pods/log"]
-  verbs: ["get", "list", "watch"]
-- apiGroups: [""]
-  resources: ["configmaps"]
-  verbs: ["get", "list", "watch"]
-- apiGroups: [""]
-  resources: ["secrets"]
-  verbs: ["get", "list"]
-- apiGroups: ["argoproj.io"]
-  resources: ["sensors", "sensors/finalizers", "sensors/status", "eventsources", "eventsources/finalizers", "eventsources/status", "eventbus", "eventbus/finalizers", "eventbus/status"]
-  verbs: ["create", "delete", "deletecollection", "get", "list", "patch", "update", "watch"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list"]
+  - apiGroups: ["argoproj.io"]
+    resources:
+      [
+        "sensors",
+        "sensors/finalizers",
+        "sensors/status",
+        "eventsources",
+        "eventsources/finalizers",
+        "eventsources/status",
+        "eventbus",
+        "eventbus/finalizers",
+        "eventbus/status",
+      ]
+    verbs:
+      [
+        "create",
+        "delete",
+        "deletecollection",
+        "get",
+        "list",
+        "patch",
+        "update",
+        "watch",
+      ]
 ---
 # ClusterRoleBinding for sensor
 apiVersion: rbac.authorization.k8s.io/v1
@@ -166,9 +205,9 @@ roleRef:
   kind: ClusterRole
   name: argo-events-sensor-role
 subjects:
-- kind: ServiceAccount
-  name: argo-events-sa
-  namespace: argo-events-demo
+  - kind: ServiceAccount
+    name: argo-events-sa
+    namespace: argo-events-demo
 ---
 # Example of a Git EventSource (commented out, uncomment to use)
 # apiVersion: argoproj.io/v1alpha1
