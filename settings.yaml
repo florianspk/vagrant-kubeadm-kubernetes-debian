@@ -32,7 +32,7 @@ nodes:
 software:
   box: Intracto/Debian13
   cilium: 1.18.0
-  kubernetes: 1.33.4-*
+  kubernetes: 1.35.0-*
   tools:
     dashboard: 2.7.0
   # argocd:

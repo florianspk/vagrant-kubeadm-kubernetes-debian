@@ -7,7 +7,7 @@ Thi fork of vagrant-kubeadm-kubernetes allows deploying your cluster with VMs ru
 
 ## Documentation
 
-Current k8s version for CKA, CKAD, and CKS exam: 1.28
+Current k8s version for CKA, CKAD, and CKS exam: 1.35.0
 
 Refer to this link for documentation: https://devopscube.com/kubernetes-cluster-vagrant/
 
